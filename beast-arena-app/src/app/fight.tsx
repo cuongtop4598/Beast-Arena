@@ -63,8 +63,8 @@ export default function FightScreen() {
 
     const p1Char = registry.get(charId);
     const p2Char = registry.get(opponentId);
-    const maxHp1 = p1Char.stats.hp * 10;
-    const maxHp2 = p2Char.stats.hp * 10;
+    const maxHp1 = p1Char?.stats.hp ? p1Char.stats.hp * 10 : 1000;
+    const maxHp2 = p2Char?.stats.hp ? p2Char.stats.hp * 10 : 1000;
 
     startMatch(`match_${Date.now()}`, {
       characterId: charId,

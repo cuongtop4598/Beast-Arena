@@ -8,8 +8,8 @@
  * Wallet login can also "link" to an existing guest account for migration.
  */
 
-import { connection, APP_IDENTITY, getNetwork } from './solana';
-import type { PublicKey } from '@solana/web3.js';
+const SOLANA_NETWORK = 'devnet';
+function getNetwork() { return SOLANA_NETWORK; }
 
 // ---------------------------------------------------------------------------
 // Types

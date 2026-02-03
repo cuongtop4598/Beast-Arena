@@ -128,7 +128,11 @@ export function GameView({ onInput }: GameViewProps) {
         mediaPlaybackRequiresUserAction={false}
       />
       <View style={styles.overlay} pointerEvents="box-none">
-        <ControlsOverlay />
+        <ControlsOverlay
+          skills={[]}
+          ultGauge={0}
+          onInput={(input) => onInput?.(input as unknown as Record<string, boolean>)}
+        />
       </View>
     </View>
   );
@@ -143,4 +147,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export { sendGameState } from './GameView';
+// GameView exported as named export above
