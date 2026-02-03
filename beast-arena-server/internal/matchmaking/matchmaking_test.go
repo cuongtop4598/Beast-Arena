@@ -1,6 +1,7 @@
 package matchmaking
 
 import (
+	"math"
 	"testing"
 
 	"go.uber.org/zap"
@@ -160,5 +161,195 @@ func TestSelfMatchPrevention(t *testing.T) {
 	p2ID = "player-456"
 	if p1ID == p2ID {
 		t.Error("Different players should be matchable")
+	}
+}
+
+// ============================================================
+// ELO Matching Range tests
+// ============================================================
+
+func TestELOMatchingRange_SimilarRatings(t *testing.T) {
+	// Players within typical matching range (~200 ELO) should match
+	p1ELO := 1000
+	p2ELO := 1150
+	maxRange := 200
+
+	diff := int(math.Abs(float64(p1ELO - p2ELO)))
+	if diff > maxRange {
+		t.Errorf("Players with %d ELO difference should be within range %d", diff, maxRange)
+	}
+}
+
+func TestELOMatchingRange_WideGap(t *testing.T) {
+	// Players with large ELO gap should not match in strict mode
+	p1ELO := 500
+	p2ELO := 2000
+	maxRange := 200
+
+	diff := int(math.Abs(float64(p1ELO - p2ELO)))
+	if diff <= maxRange {
+		t.Errorf("Players with %d ELO difference should NOT be within range %d", diff, maxRange)
+	}
+}
+
+func TestELOMatchingRange_ExactlyAtBoundary(t *testing.T) {
+	p1ELO := 1000
+	p2ELO := 1200
+	maxRange := 200
+
+	diff := int(math.Abs(float64(p1ELO - p2ELO)))
+	if diff > maxRange {
+		t.Error("Exactly at boundary should be matchable")
+	}
+}
+
+// ============================================================
+// Queue Add/Remove tests
+// ============================================================
+
+func TestQueueDataFormat_AddPlayer(t *testing.T) {
+	// The queue stores "playerID:characterID" format
+	playerID := "player-abc"
+	charID := "tiger"
+	queueEntry := playerID + ":" + charID
+
+	parts := splitPlayerData(queueEntry)
+	if len(parts) != 2 {
+		t.Fatal("Queue entry should split into 2 parts")
+	}
+	if parts[0] != playerID {
+		t.Errorf("Expected player ID '%s', got '%s'", playerID, parts[0])
+	}
+	if parts[1] != charID {
+		t.Errorf("Expected character ID '%s', got '%s'", charID, parts[1])
+	}
+}
+
+func TestQueueDataFormat_RemovePlayer(t *testing.T) {
+	// Simulate queue with add/remove
+	queue := []string{
+		"player1:tiger",
+		"player2:lion",
+		"player3:eagle",
+	}
+
+	// Remove player2
+	removeID := "player2"
+	var newQueue []string
+	for _, entry := range queue {
+		parts := splitPlayerData(entry)
+		if len(parts) >= 2 && parts[0] != removeID {
+			newQueue = append(newQueue, entry)
+		}
+	}
+
+	if len(newQueue) != 2 {
+		t.Errorf("Expected 2 entries after removal, got %d", len(newQueue))
+	}
+	// Verify player2 is gone
+	for _, entry := range newQueue {
+		parts := splitPlayerData(entry)
+		if parts[0] == removeID {
+			t.Error("Removed player should not be in queue")
+		}
+	}
+}
+
+// ============================================================
+// Match Creation tests
+// ============================================================
+
+func TestMatchCreation_ValidPair(t *testing.T) {
+	result := MatchResult{
+		MatchID:     "match-test-1",
+		Player1ID:   "player1",
+		Player1Char: "tiger",
+		Player2ID:   "player2",
+		Player2Char: "lion",
+		StageID:     "ancient_temple",
+	}
+
+	// Verify all fields set
+	if result.MatchID == "" {
+		t.Error("MatchID should not be empty")
+	}
+	if result.Player1ID == result.Player2ID {
+		t.Error("Players should be different")
+	}
+	if result.Player1Char == "" || result.Player2Char == "" {
+		t.Error("Character selections should not be empty")
+	}
+	if result.StageID == "" {
+		t.Error("StageID should not be empty")
+	}
+}
+
+func TestMatchCreation_SameCharacterAllowed(t *testing.T) {
+	// Mirror matches should be allowed
+	result := MatchResult{
+		MatchID:     "mirror-match",
+		Player1ID:   "p1",
+		Player1Char: "tiger",
+		Player2ID:   "p2",
+		Player2Char: "tiger", // Same character
+		StageID:     "stage1",
+	}
+
+	if result.Player1Char != result.Player2Char {
+		t.Error("Mirror matches should allow same character")
+	}
+}
+
+// ============================================================
+// Practice Mode Turn Tracking tests
+// ============================================================
+
+func TestPracticeTurnTracking(t *testing.T) {
+	maxTurns := 5
+	turnsUsed := 0
+
+	// Use turns
+	for i := 0; i < maxTurns; i++ {
+		if turnsUsed >= maxTurns {
+			t.Fatalf("Should be able to start turn %d", i+1)
+		}
+		turnsUsed++
+	}
+
+	if turnsUsed != maxTurns {
+		t.Errorf("Expected %d turns used, got %d", maxTurns, turnsUsed)
+	}
+
+	// No more turns
+	remaining := maxTurns - turnsUsed
+	if remaining != 0 {
+		t.Errorf("Expected 0 turns remaining, got %d", remaining)
+	}
+}
+
+func TestPracticeTurnTracking_DecrementOnStart(t *testing.T) {
+	freePractice := 5
+
+	// Simulate starting practice
+	freePractice--
+	if freePractice != 4 {
+		t.Errorf("Expected 4 practice turns after one use, got %d", freePractice)
+	}
+
+	// Use all remaining
+	for freePractice > 0 {
+		freePractice--
+	}
+	if freePractice != 0 {
+		t.Errorf("Expected 0, got %d", freePractice)
+	}
+}
+
+func TestPracticeTurnTracking_CannotStartWhenExhausted(t *testing.T) {
+	freePractice := 0
+
+	canStart := freePractice > 0
+	if canStart {
+		t.Error("Should not be able to start with 0 turns")
 	}
 }

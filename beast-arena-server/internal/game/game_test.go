@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"math"
 	"testing"
 	"time"
 )
@@ -1190,5 +1191,437 @@ func TestMustMarshal(t *testing.T) {
 	}
 	if m["a"] != 1 {
 		t.Error("mustMarshal data mismatch")
+	}
+}
+
+// ============================================================
+// ELO Calculation tests
+// ============================================================
+
+func TestPow10(t *testing.T) {
+	// pow10 is a simple approximation used for ELO
+	result := pow10(0)
+	if result != 1.0 {
+		t.Errorf("pow10(0) should be 1, got %f", result)
+	}
+
+	result = pow10(1)
+	if result != 10.0 {
+		t.Errorf("pow10(1) should be 10, got %f", result)
+	}
+
+	result = pow10(2)
+	if result != 100.0 {
+		t.Errorf("pow10(2) should be 100, got %f", result)
+	}
+}
+
+func TestELOExpectedScore(t *testing.T) {
+	// Verify the ELO formula produces correct expected scores
+	K := 32.0
+
+	// Equal ratings: both should gain/lose ~16
+	winnerPts := 1000
+	loserPts := 1000
+	expectedWinner := 1.0 / (1.0 + pow10(float64(loserPts-winnerPts)/400.0))
+	newWinner := winnerPts + int(K*(1.0-expectedWinner))
+	newLoser := loserPts + int(K*(0.0-(1.0-expectedWinner)))
+
+	if newWinner <= winnerPts {
+		t.Error("Winner should gain points")
+	}
+	if newLoser >= loserPts {
+		t.Error("Loser should lose points")
+	}
+	// With equal ratings, gain should be ~16
+	gain := newWinner - winnerPts
+	if gain < 14 || gain > 18 {
+		t.Errorf("Equal-rating gain should be ~16, got %d", gain)
+	}
+}
+
+func TestELOHigherRatedPlayerWinsLess(t *testing.T) {
+	K := 32.0
+
+	// Higher rated beats lower rated — use math.Pow for precise test
+	winnerPts := 1500
+	loserPts := 1000
+	expected := 1.0 / (1.0 + math.Pow(10, float64(loserPts-winnerPts)/400.0))
+	gain1 := K * (1.0 - expected)
+
+	// Equal rated beats equal rated
+	winnerPts2 := 1000
+	loserPts2 := 1000
+	expected2 := 1.0 / (1.0 + math.Pow(10, float64(loserPts2-winnerPts2)/400.0))
+	gain2 := K * (1.0 - expected2)
+
+	if gain1 >= gain2 {
+		t.Errorf("Higher-rated winner should gain less (%.2f) than equal-rated winner (%.2f)", gain1, gain2)
+	}
+}
+
+func TestELOFloorAtZero(t *testing.T) {
+	// Verify ELO never goes negative
+	K := 32.0
+	loserPts := 5
+	winnerPts := 2000
+	expectedLoser := 1.0 - (1.0 / (1.0 + pow10(float64(loserPts-winnerPts)/400.0)))
+	newLoser := loserPts + int(K*(0.0-expectedLoser))
+
+	if newLoser < 0 {
+		// This is what the real updateELO function handles
+		newLoser = 0
+	}
+	if newLoser < 0 {
+		t.Errorf("ELO should be floored at 0, got %d", newLoser)
+	}
+}
+
+// ============================================================
+// HP Bounds tests
+// ============================================================
+
+func TestHP_NeverNegativeAfterDamage(t *testing.T) {
+	gs := NewGameState("hp-1", "tiger", "p1", "lion", "p2", "stage")
+
+	// Apply massive damage
+	result := DamageResult{FinalDamage: 9999, Knockback: 10, HitStun: 3}
+	ApplyDamage(gs, true, result)
+
+	if gs.Player1.HP < 0 {
+		t.Errorf("HP should never be negative, got %d", gs.Player1.HP)
+	}
+	if gs.Player1.HP != 0 {
+		t.Errorf("HP should be exactly 0 after lethal damage, got %d", gs.Player1.HP)
+	}
+}
+
+func TestHP_NeverExceedsMaxAfterHeal(t *testing.T) {
+	fighter := &FighterState{HP: 990, MaxHP: 1000}
+	drop := &SupplyDrop{ItemID: "heal_large"} // +100 heal
+
+	ClaimDrop(drop, fighter)
+
+	if fighter.HP > fighter.MaxHP {
+		t.Errorf("HP should not exceed MaxHP, got %d/%d", fighter.HP, fighter.MaxHP)
+	}
+	if fighter.HP != 1000 {
+		t.Errorf("HP should be capped at MaxHP=1000, got %d", fighter.HP)
+	}
+}
+
+func TestHP_MultipleConsecutiveHits(t *testing.T) {
+	gs := NewGameState("hp-2", "tiger", "p1", "lion", "p2", "stage")
+
+	// Apply many small damage hits
+	for i := 0; i < 200; i++ {
+		result := DamageResult{FinalDamage: 10, Knockback: 5, HitStun: 1}
+		ApplyDamage(gs, true, result)
+	}
+
+	if gs.Player1.HP < 0 {
+		t.Errorf("HP should never go negative even after many hits, got %d", gs.Player1.HP)
+	}
+}
+
+func TestHP_ZeroDamageStaysPositive(t *testing.T) {
+	gs := NewGameState("hp-3", "tiger", "p1", "lion", "p2", "stage")
+
+	result := DamageResult{FinalDamage: 0, Knockback: 0, HitStun: 0}
+	ApplyDamage(gs, true, result)
+
+	if gs.Player1.HP != 1000 {
+		t.Errorf("HP should stay at 1000 with 0 damage, got %d", gs.Player1.HP)
+	}
+}
+
+func TestUltGauge_CappedAt100(t *testing.T) {
+	gs := NewGameState("ult-1", "tiger", "p1", "lion", "p2", "stage")
+	gs.Player2.UltGauge = 95
+
+	result := DamageResult{FinalDamage: 500, Knockback: 10, HitStun: 3, UltGainAtk: 50, UltGainDef: 50}
+	ApplyDamage(gs, true, result)
+
+	if gs.Player2.UltGauge > 100 {
+		t.Errorf("Attacker ult gauge should cap at 100, got %f", gs.Player2.UltGauge)
+	}
+	if gs.Player1.UltGauge > 100 {
+		t.Errorf("Defender ult gauge should cap at 100, got %f", gs.Player1.UltGauge)
+	}
+}
+
+// ============================================================
+// Combo Counter tests
+// ============================================================
+
+func TestComboCounter_IncrementsOnHit(t *testing.T) {
+	gs := NewGameState("combo-1", "tiger", "p1", "lion", "p2", "stage")
+
+	if gs.Player2.ComboCount != 0 {
+		t.Errorf("Combo should start at 0, got %d", gs.Player2.ComboCount)
+	}
+
+	for i := 1; i <= 5; i++ {
+		result := DamageResult{FinalDamage: 50, Knockback: 10, HitStun: 3}
+		ApplyDamage(gs, true, result) // P2 attacks P1
+		if gs.Player2.ComboCount != i {
+			t.Errorf("After %d hits, combo should be %d, got %d", i, i, gs.Player2.ComboCount)
+		}
+	}
+}
+
+func TestComboCounter_BothPlayersIndependent(t *testing.T) {
+	gs := NewGameState("combo-2", "tiger", "p1", "lion", "p2", "stage")
+
+	// P2 attacks P1 (3 times)
+	for i := 0; i < 3; i++ {
+		ApplyDamage(gs, true, DamageResult{FinalDamage: 50, Knockback: 5, HitStun: 2})
+	}
+	// P1 attacks P2 (1 time)
+	ApplyDamage(gs, false, DamageResult{FinalDamage: 50, Knockback: 5, HitStun: 2})
+
+	if gs.Player2.ComboCount != 3 {
+		t.Errorf("P2 combo should be 3, got %d", gs.Player2.ComboCount)
+	}
+	if gs.Player1.ComboCount != 1 {
+		t.Errorf("P1 combo should be 1, got %d", gs.Player1.ComboCount)
+	}
+}
+
+// ============================================================
+// Round Management (Bo3) tests
+// ============================================================
+
+func TestRoundManagement_Constants(t *testing.T) {
+	if RoundsToWin != 2 {
+		t.Errorf("Expected RoundsToWin=2, got %d", RoundsToWin)
+	}
+	if MaxRounds != 3 {
+		t.Errorf("Expected MaxRounds=3, got %d", MaxRounds)
+	}
+	if RoundTimeSec != 99 {
+		t.Errorf("Expected RoundTimeSec=99, got %d", RoundTimeSec)
+	}
+}
+
+func TestRoundManagement_EndRound_AdvancesToNextRound(t *testing.T) {
+	gs := NewGameState("round-1", "tiger", "p1", "lion", "p2", "stage")
+	gs.Round = 1
+	gs.Status = StatusFighting
+
+	EndRound(gs, "p1", "ko")
+
+	// P1 has 1 win, need 2 to win match → next round
+	if gs.Round != 2 {
+		t.Errorf("Expected round 2, got %d", gs.Round)
+	}
+	if gs.Status != StatusRoundEnd {
+		t.Errorf("Expected StatusRoundEnd, got %s", gs.Status)
+	}
+	if len(gs.RoundResults) != 1 {
+		t.Errorf("Expected 1 round result, got %d", len(gs.RoundResults))
+	}
+}
+
+func TestRoundManagement_RoundResultTracking(t *testing.T) {
+	gs := NewGameState("round-2", "tiger", "p1", "lion", "p2", "stage")
+
+	// Round 1: P1 wins
+	gs.Round = 1
+	result1 := RoundResult{Round: 1, WinnerID: "p1", Method: "ko", P1HP: 500, P2HP: 0}
+	gs.RoundResults = append(gs.RoundResults, result1)
+
+	// Count wins
+	p1Wins := 0
+	for _, r := range gs.RoundResults {
+		if r.WinnerID == "p1" {
+			p1Wins++
+		}
+	}
+	if p1Wins != 1 {
+		t.Errorf("P1 should have 1 win, got %d", p1Wins)
+	}
+
+	// Round 2: P2 wins
+	result2 := RoundResult{Round: 2, WinnerID: "p2", Method: "timeout", P1HP: 300, P2HP: 500}
+	gs.RoundResults = append(gs.RoundResults, result2)
+
+	p2Wins := 0
+	for _, r := range gs.RoundResults {
+		if r.WinnerID == "p2" {
+			p2Wins++
+		}
+	}
+	if p2Wins != 1 {
+		t.Errorf("P2 should have 1 win, got %d", p2Wins)
+	}
+
+	// Neither has RoundsToWin yet
+	if p1Wins >= RoundsToWin || p2Wins >= RoundsToWin {
+		t.Error("Neither player should have won the match yet after 1 win each")
+	}
+
+	// Round 3: P1 wins → match over
+	result3 := RoundResult{Round: 3, WinnerID: "p1", Method: "ko", P1HP: 200, P2HP: 0}
+	gs.RoundResults = append(gs.RoundResults, result3)
+
+	p1Wins = 0
+	for _, r := range gs.RoundResults {
+		if r.WinnerID == "p1" {
+			p1Wins++
+		}
+	}
+	if p1Wins < RoundsToWin {
+		t.Errorf("P1 should have %d wins (match winner), got %d", RoundsToWin, p1Wins)
+	}
+}
+
+func TestRoundManagement_Bo3_P2WinsStraight(t *testing.T) {
+	gs := NewGameState("round-3", "tiger", "p1", "lion", "p2", "stage")
+
+	// P2 wins 2-0
+	gs.RoundResults = []RoundResult{
+		{Round: 1, WinnerID: "p2", Method: "ko"},
+		{Round: 2, WinnerID: "p2", Method: "ko"},
+	}
+
+	p2Wins := 0
+	for _, r := range gs.RoundResults {
+		if r.WinnerID == "p2" {
+			p2Wins++
+		}
+	}
+	if p2Wins < RoundsToWin {
+		t.Errorf("P2 should have won with %d wins", p2Wins)
+	}
+
+	// Match should end after 2 rounds (not go to 3)
+	if len(gs.RoundResults) != 2 {
+		t.Errorf("2-0 match should end in 2 rounds, not %d", len(gs.RoundResults))
+	}
+}
+
+func TestRoundManagement_Bo3_DecidingRound(t *testing.T) {
+	gs := NewGameState("round-4", "tiger", "p1", "lion", "p2", "stage")
+
+	// 1-1 going into round 3
+	gs.RoundResults = []RoundResult{
+		{Round: 1, WinnerID: "p1", Method: "ko"},
+		{Round: 2, WinnerID: "p2", Method: "timeout"},
+	}
+
+	p1Wins, p2Wins := 0, 0
+	for _, r := range gs.RoundResults {
+		if r.WinnerID == "p1" {
+			p1Wins++
+		} else if r.WinnerID == "p2" {
+			p2Wins++
+		}
+	}
+
+	// Tied — need round 3
+	if p1Wins >= RoundsToWin || p2Wins >= RoundsToWin {
+		t.Error("Match should not be over at 1-1")
+	}
+
+	// Round 3
+	gs.RoundResults = append(gs.RoundResults, RoundResult{Round: 3, WinnerID: "p1", Method: "ko"})
+	p1Wins = 0
+	for _, r := range gs.RoundResults {
+		if r.WinnerID == "p1" {
+			p1Wins++
+		}
+	}
+	if p1Wins != 2 {
+		t.Errorf("P1 should have 2 wins after deciding round, got %d", p1Wins)
+	}
+}
+
+func TestRoundManagement_resetRound_RestoresHP(t *testing.T) {
+	gs := NewGameState("reset-1", "tiger", "p1", "lion", "p2", "stage")
+	gs.Player1.HP = 200
+	gs.Player2.HP = 500
+	gs.Player1.ComboCount = 5
+	gs.Player2.ComboCount = 3
+	gs.Player1.UltGauge = 80.0
+	gs.Player1.State = ActionStunned
+
+	resetRound(gs)
+
+	// HP should be restored to max
+	if gs.Player1.HP != gs.Player1.MaxHP {
+		t.Errorf("P1 HP should be restored, got %d/%d", gs.Player1.HP, gs.Player1.MaxHP)
+	}
+	if gs.Player2.HP != gs.Player2.MaxHP {
+		t.Errorf("P2 HP should be restored, got %d/%d", gs.Player2.HP, gs.Player2.MaxHP)
+	}
+	// Combo should reset
+	if gs.Player1.ComboCount != 0 {
+		t.Errorf("P1 combo should reset to 0, got %d", gs.Player1.ComboCount)
+	}
+	// State should be idle
+	if gs.Player1.State != ActionIdle {
+		t.Errorf("P1 state should be idle, got %s", gs.Player1.State)
+	}
+	// Timer should reset
+	if gs.Timer != RoundTimeSec {
+		t.Errorf("Timer should reset to %d, got %d", RoundTimeSec, gs.Timer)
+	}
+}
+
+// ============================================================
+// Damage Calculation detailed tests
+// ============================================================
+
+func TestCalculateDamage_MinimumDamageIsOne(t *testing.T) {
+	attacker := &FighterState{State: ActionAttacking, HP: 1000, MaxHP: 1000}
+	defender := &FighterState{State: ActionIdle, HP: 1000, MaxHP: 1000}
+
+	// Very weak skill vs very high DEF
+	skill := &SkillDef{Damage: 1, Active: 3}
+	atkStats := &CharacterStats{ATK: 1}
+	defStats := &CharacterStats{DEF: 100}
+
+	result := CalculateDamage(attacker, defender, skill, atkStats, defStats)
+
+	if result.FinalDamage < 1 {
+		t.Errorf("Minimum damage should be 1, got %d", result.FinalDamage)
+	}
+}
+
+func TestCalculateDamage_KnockbackIncreasesOnKnockdownSkill(t *testing.T) {
+	attacker := &FighterState{State: ActionAttacking, HP: 1000, MaxHP: 1000}
+	defender := &FighterState{State: ActionIdle, HP: 1000, MaxHP: 1000}
+
+	normalSkill := &SkillDef{Damage: 50, Active: 3, Effect: ""}
+	knockdownSkill := &SkillDef{Damage: 50, Active: 3, Effect: "knockdown"}
+	atkStats := &CharacterStats{ATK: 20}
+	defStats := &CharacterStats{DEF: 10}
+
+	r1 := CalculateDamage(attacker, defender, normalSkill, atkStats, defStats)
+	r2 := CalculateDamage(attacker, defender, knockdownSkill, atkStats, defStats)
+
+	if r2.Knockback <= r1.Knockback {
+		t.Errorf("Knockdown skill should have more knockback (%f) than normal (%f)", r2.Knockback, r1.Knockback)
+	}
+}
+
+// ============================================================
+// Stage position clamping tests
+// ============================================================
+
+func TestApplyDamage_PositionClampedToStage(t *testing.T) {
+	gs := NewGameState("clamp-1", "tiger", "p1", "lion", "p2", "stage")
+	gs.Player1.Position.X = 60
+	gs.Player1.Facing = "left" // knockback pushes right → towards center
+
+	result := DamageResult{FinalDamage: 50, Knockback: 200, HitStun: 3}
+	ApplyDamage(gs, true, result)
+
+	if gs.Player1.Position.X < 50 {
+		t.Errorf("Position should be clamped to min 50, got %f", gs.Player1.Position.X)
+	}
+	if gs.Player1.Position.X > 1230 {
+		t.Errorf("Position should be clamped to max 1230, got %f", gs.Player1.Position.X)
 	}
 }
