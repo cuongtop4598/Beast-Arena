@@ -18,6 +18,8 @@ export default function RootLayout() {
         <Stack.Screen name="stage-select" />
         <Stack.Screen name="fight" options={{ orientation: 'landscape', gestureEnabled: false }} />
         <Stack.Screen name="result" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="profile" />
+        <Stack.Screen name="wager" />
       </Stack>
     </>
   );

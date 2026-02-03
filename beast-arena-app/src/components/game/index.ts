@@ -8,3 +8,4 @@ export { UltimateButton } from './UltimateButton';
 export { GameHUD } from './GameHUD';
 export { ControlsOverlay } from './ControlsOverlay';
 export type { ControlInput } from './ControlsOverlay';
+export { SupplyDropOverlay } from './SupplyDropOverlay';
