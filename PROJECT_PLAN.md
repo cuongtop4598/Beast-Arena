@@ -6,6 +6,12 @@
 **Thể loại:** Đối kháng 1v1, GameFi  
 **Approach:** MVP First → Solana Integration sau  
 
+### 🔗 Community Links
+- **Discord:** https://discord.gg/beastarena *(TODO: create server & update link)*
+- **Telegram:** https://t.me/beastarena *(TODO: create group & update link)*
+- **Twitter/X:** https://x.com/beastarena *(TODO: create account & update link)*
+- **Website:** https://beastarena.gg *(TODO: deploy landing page)*
+
 ---
 
 ## PHASE 0: KHỞI TẠO & KIẾN TRÚC (Tuần 1-2)

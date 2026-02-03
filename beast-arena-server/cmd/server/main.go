@@ -12,6 +12,7 @@ import (
 	"github.com/beast-arena/server/internal/db"
 	"github.com/beast-arena/server/internal/game"
 	"github.com/beast-arena/server/internal/matchmaking"
+	"github.com/beast-arena/server/internal/metrics"
 	"github.com/beast-arena/server/internal/ws"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -64,6 +65,9 @@ func main() {
 	// Gin router
 	r := gin.Default()
 
+	// Prometheus metrics middleware
+	r.Use(metrics.PrometheusMiddleware())
+
 	// CORS middleware
 	r.Use(func(c *gin.Context) {
 		c.Header("Access-Control-Allow-Origin", "*")
@@ -75,6 +79,9 @@ func main() {
 		}
 		c.Next()
 	})
+
+	// Prometheus metrics endpoint
+	r.GET("/metrics", metrics.MetricsHandler)
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
