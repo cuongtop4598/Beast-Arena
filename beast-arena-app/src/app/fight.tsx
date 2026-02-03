@@ -5,13 +5,9 @@ import { useGameStore } from '../stores/useGameStore';
 import { usePlayerStore } from '../stores/usePlayerStore';
 import { registry } from '../characters/registry';
 import * as api from '../services/api';
-
-// Stage color themes
-const STAGE_COLORS: Record<string, [string, string]> = {
-  ancient_temple: ['#3D1F00', '#8B4513'],
-  bamboo_forest: ['#0A2E1A', '#2E8B57'],
-  thunder_peak: ['#1A0033', '#4B0082'],
-};
+import { audioManager } from '../engine/AudioManager';
+import { useAnnouncerManager } from '../engine/AnnouncerManager';
+import StageBackground from '../components/game/StageBackground';
 
 const CHAR_EMOJI: Record<string, string> = {
   tiger: '🐯',
@@ -20,39 +16,35 @@ const CHAR_EMOJI: Record<string, string> = {
   eagle: '🦅',
 };
 
-type Announcement = {
-  text: string;
-  color: string;
-  fontSize: number;
-};
-
 export default function FightScreen() {
   const router = useRouter();
   const { selectedCharacter, selectedStage, player1, player2, timer, setTimer, startMatch, updateFighters, endRound, round } = useGameStore();
-
-  const [announcement, setAnnouncement] = useState<Announcement | null>(null);
-  const announceAnim = useRef(new Animated.Value(0)).current;
-  const announceScale = useRef(new Animated.Value(0.3)).current;
-
-  // Fighter positions (animated)
-  const p1X = useRef(new Animated.Value(100)).current;
-  const p2X = useRef(new Animated.Value(Dimensions.get('window').width - 180)).current;
+  const { announcement, announceRound, announceFight, announceKO, clear: clearAnnouncer } = useAnnouncerManager();
 
   // HP animations
   const p1HpAnim = useRef(new Animated.Value(1)).current;
   const p2HpAnim = useRef(new Animated.Value(1)).current;
 
-  const stageColors = STAGE_COLORS[selectedStage || 'ancient_temple'] || STAGE_COLORS.ancient_temple;
+  const stageId = selectedStage || 'ancient_temple';
   const charId = selectedCharacter || 'tiger';
   const charConfig = registry.get(charId);
   const opponentId = charId === 'tiger' ? 'lion' : 'tiger';
 
-  // Initialize match — call backend for practice mode
+  // --- Audio: Play fight BGM on mount ---
+  useEffect(() => {
+    audioManager.playBGM('fight_theme');
+    return () => {
+      audioManager.stopBGM();
+      clearAnnouncer();
+    };
+  }, [clearAnnouncer]);
+
+  // Initialize match
   useEffect(() => {
     const initBackend = async () => {
       const gameMode = useGameStore.getState().gameMode;
       if (gameMode === 'practice') {
-        const res = await api.startPractice(charId, selectedStage || 'ancient_temple');
+        const res = await api.startPractice(charId, stageId);
         if (res.data) {
           usePlayerStore.getState().setFreePractice(res.data.free_practice_left);
           console.log('[Fight] Practice match created:', res.data.match_id);
@@ -88,32 +80,16 @@ export default function FightScreen() {
       comboCount: 0,
     });
 
-    // Show "ROUND 1" → "FIGHT!" sequence
-    showAnnouncement({ text: `ROUND ${round}`, color: '#FFFFFF', fontSize: 48 }, 1200, () => {
-      showAnnouncement({ text: 'FIGHT!', color: '#FFD700', fontSize: 72 }, 1000, () => {
+    // Announcement sequence: ROUND → FIGHT! → start
+    announceRound(round);
+    setTimeout(() => {
+      announceFight();
+      setTimeout(() => {
         startTimer();
         startSimulation();
-      });
-    });
+      }, 1300);
+    }, 1200);
   }, []);
-
-  const showAnnouncement = (ann: Announcement, duration: number, onDone?: () => void) => {
-    setAnnouncement(ann);
-    announceAnim.setValue(0);
-    announceScale.setValue(0.3);
-
-    Animated.parallel([
-      Animated.timing(announceAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.spring(announceScale, { toValue: 1, useNativeDriver: true, friction: 4 }),
-    ]).start(() => {
-      setTimeout(() => {
-        Animated.timing(announceAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
-          setAnnouncement(null);
-          onDone?.();
-        });
-      }, duration - 400);
-    });
-  };
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const simRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -136,12 +112,19 @@ export default function FightScreen() {
       const state = useGameStore.getState();
       if (!state.player1 || !state.player2) return;
 
-      // Random damage exchange every 2s
+      // Random damage exchange
       const p1Dmg = Math.floor(Math.random() * 15) + 5;
       const p2Dmg = Math.floor(Math.random() * 12) + 3;
 
       const newP1Hp = Math.max(0, state.player1.hp - p2Dmg);
       const newP2Hp = Math.max(0, state.player2.hp - p1Dmg);
+
+      // Play hit SFX on damage
+      if (p1Dmg > 10) {
+        audioManager.playSFX('hit_heavy');
+      } else {
+        audioManager.playSFX('hit_light');
+      }
 
       updateFighters(
         { hp: newP1Hp, ultGauge: Math.min(100, (state.player1.ultGauge || 0) + 5) },
@@ -149,16 +132,15 @@ export default function FightScreen() {
       );
 
       // Animate HP bars
-      p1HpAnim.setValue(newP1Hp / state.player1.maxHp);
-      p2HpAnim.setValue(newP2Hp / state.player2.maxHp);
+      Animated.timing(p1HpAnim, { toValue: newP1Hp / state.player1.maxHp, duration: 300, useNativeDriver: false }).start();
+      Animated.timing(p2HpAnim, { toValue: newP2Hp / state.player2.maxHp, duration: 300, useNativeDriver: false }).start();
 
       // Check KO
       if (newP1Hp <= 0 || newP2Hp <= 0) {
         clearInterval(simRef.current!);
-        const winnerId = newP1Hp > 0 ? 'player1' : 'ai';
-        showAnnouncement({ text: 'K.O!', color: '#EF4444', fontSize: 80 }, 1500, () => {
-          endFight();
-        });
+        announceKO();
+        audioManager.playSFX('ko');
+        setTimeout(() => endFight(), 2000);
       }
     }, 2000);
   };
@@ -166,6 +148,7 @@ export default function FightScreen() {
   const endFight = () => {
     if (timerRef.current) clearInterval(timerRef.current);
     if (simRef.current) clearInterval(simRef.current);
+    audioManager.stopBGM();
     setTimeout(() => router.replace('/result'), 500);
   };
 
@@ -178,23 +161,20 @@ export default function FightScreen() {
 
   const state = useGameStore.getState();
   const p1Hp = state.player1?.hp ?? 100;
-  const p1MaxHp = state.player1?.maxHp ?? 100;
   const p2Hp = state.player2?.hp ?? 100;
-  const p2MaxHp = state.player2?.maxHp ?? 100;
 
   return (
-    <View style={[styles.container, { backgroundColor: stageColors[0] }]}>
-      {/* Background layers */}
-      <View style={[styles.bgLayer, { backgroundColor: stageColors[1], opacity: 0.3 }]} />
-      <View style={styles.groundLine} />
+    <View style={styles.container}>
+      {/* Rich stage background with particles */}
+      <StageBackground stageId={stageId} />
 
-      {/* HUD - Simplified inline for MVP */}
+      {/* HUD */}
       <View style={styles.hudTop}>
         {/* P1 HP */}
         <View style={styles.hpSection}>
           <Text style={styles.charLabel}>{CHAR_EMOJI[charId]} {charConfig?.name}</Text>
           <View style={styles.hpBarBg}>
-            <Animated.View style={[styles.hpBarFill, styles.hpFillP1, { 
+            <Animated.View style={[styles.hpBarFill, styles.hpFillP1, {
               width: p1HpAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] })
             }]} />
           </View>
@@ -230,14 +210,33 @@ export default function FightScreen() {
         </Animated.View>
       </View>
 
-      {/* Announcement overlay */}
+      {/* Announcer overlay — comic-style */}
       {announcement && (
         <Animated.View
           style={[
             styles.announcementContainer,
-            { opacity: announceAnim, transform: [{ scale: announceScale }] },
+            {
+              opacity: announcement.opacity,
+              transform: [
+                { scale: announcement.scale },
+                { translateY: announcement.translateY },
+                { rotate: announcement.rotation.interpolate({
+                  inputRange: [-1, 1],
+                  outputRange: ['-15deg', '15deg'],
+                }) },
+              ],
+            },
           ]}
         >
+          {/* Comic-style text with stroke effect */}
+          <Text
+            style={[
+              styles.announcementStroke,
+              { color: announcement.strokeColor, fontSize: announcement.fontSize + 2 },
+            ]}
+          >
+            {announcement.text}
+          </Text>
           <Text
             style={[
               styles.announcementText,
@@ -248,9 +247,6 @@ export default function FightScreen() {
           </Text>
         </Animated.View>
       )}
-
-      {/* Controls placeholder */}
-      {/* TODO: Import ControlsOverlay from components/game */}
     </View>
   );
 }
@@ -258,17 +254,7 @@ export default function FightScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  bgLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  groundLine: {
-    position: 'absolute',
-    bottom: '25%',
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: '#000',
   },
   // HUD
   hudTop: {
@@ -289,6 +275,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 4,
+    textShadowColor: '#000',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
   },
   hpBarBg: {
     height: 14,
@@ -315,9 +304,11 @@ const styles = StyleSheet.create({
     width: 60,
     alignItems: 'center',
     marginHorizontal: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     borderRadius: 8,
     padding: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   timerText: {
     fontSize: 24,
@@ -355,7 +346,7 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
-  // Announcement
+  // Announcement - comic style
   announcementContainer: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
@@ -363,9 +354,19 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   announcementText: {
-    fontWeight: 'bold',
+    fontWeight: '900',
     textShadowColor: '#000',
     textShadowOffset: { width: 3, height: 3 },
-    textShadowRadius: 8,
+    textShadowRadius: 10,
+    letterSpacing: 4,
+  },
+  announcementStroke: {
+    position: 'absolute',
+    fontWeight: '900',
+    textShadowColor: '#000',
+    textShadowOffset: { width: 4, height: 4 },
+    textShadowRadius: 12,
+    letterSpacing: 4,
+    opacity: 0.5,
   },
 });

@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { usePlayerStore } from '../stores/usePlayerStore';
 import { useGameStore } from '../stores/useGameStore';
+import { audioManager } from '../engine/AudioManager';
 
 const CHAR_EMOJI: Record<string, string> = {
   tiger: '🐯', lion: '🦁', crocodile: '🐊', eagle: '🦅',
@@ -12,12 +14,21 @@ export default function LobbyScreen() {
   const player = usePlayerStore();
   const setGameMode = useGameStore((s) => s.setGameMode);
 
+  // Play menu BGM
+  useEffect(() => {
+    audioManager.preloadAll();
+    audioManager.playBGM('menu_theme');
+    return () => { audioManager.stopBGM(); };
+  }, []);
+
   const handlePvP = () => {
+    audioManager.playUI('confirm');
     setGameMode('pvp');
     router.push('/character-select');
   };
 
   const handlePractice = () => {
+    audioManager.playUI('confirm');
     setGameMode('practice');
     router.push('/character-select');
   };

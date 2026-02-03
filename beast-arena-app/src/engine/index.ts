@@ -17,3 +17,9 @@ export { SlowMotion } from './SlowMotion';
 export { useAnnouncer, ANNOUNCEMENT_PRESETS } from './AnnouncerSystem';
 export { ComboTracker } from './ComboTracker';
 export type { ComboState } from './ComboTracker';
+
+// Phase 5: Audio & Announcer
+export { audioManager } from './AudioManager';
+export type { SFXName, BGMName, UISound } from './AudioManager';
+export { useAnnouncerManager, ANNOUNCER_PRESETS } from './AnnouncerManager';
+export type { AnnouncerAnimation, AnnouncerPreset, ActiveAnnouncement } from './AnnouncerManager';

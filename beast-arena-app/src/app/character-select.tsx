@@ -1,15 +1,10 @@
+import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '../stores/useGameStore';
 import { registry } from '../characters/registry';
-import { CharacterConfig } from '../characters/types';
-
-const CHAR_EMOJI: Record<string, string> = {
-  tiger: '🐯',
-  lion: '🦁',
-  crocodile: '🐊',
-  eagle: '🦅',
-};
+import { audioManager } from '../engine/AudioManager';
+import CharacterPortrait from '../components/CharacterPortrait';
 
 function StatBar({ label, value, max = 32 }: { label: string; value: number; max?: number }) {
   return (
@@ -29,9 +24,20 @@ export default function CharacterSelectScreen() {
   const characters = registry.getAll();
   const selected = selectedCharacter ? registry.get(selectedCharacter) : null;
 
+  // Play character select BGM
+  useEffect(() => {
+    audioManager.playBGM('character_select');
+    return () => { audioManager.stopBGM(); };
+  }, []);
+
+  const handleSelectChar = (id: string) => {
+    audioManager.playUI('navigate');
+    selectCharacter(id);
+  };
+
   const handleConfirm = () => {
     if (!selectedCharacter) return;
-    // TODO: navigate to stage select or directly to fight
+    audioManager.playUI('confirm');
     router.push('/stage-select');
   };
 
@@ -39,15 +45,19 @@ export default function CharacterSelectScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>CHỌN CHIẾN BINH</Text>
 
-      {/* Character Preview */}
+      {/* Character Preview — uses CharacterPortrait */}
       <View style={styles.preview}>
         {selected ? (
           <>
-            <Text style={styles.previewEmoji}>{CHAR_EMOJI[selected.id] || '❓'}</Text>
-            <Text style={styles.previewName}>{selected.name}</Text>
-            <Text style={styles.previewTitle}>{selected.title}</Text>
+            <CharacterPortrait
+              characterId={selected.id}
+              name={selected.name}
+              martialArt={selected.martialArt}
+              selected={true}
+              size="large"
+            />
 
-            {/* Stats */}
+            {/* Stats below portrait */}
             <View style={styles.statsContainer}>
               <StatBar label="HP" value={selected.stats.hp} />
               <StatBar label="ATK" value={selected.stats.atk} />
@@ -61,19 +71,22 @@ export default function CharacterSelectScreen() {
         )}
       </View>
 
-      {/* Character Grid */}
+      {/* Character Grid — uses CharacterPortrait cards */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.charList}>
         {characters.map((char) => (
           <TouchableOpacity
             key={char.id}
-            style={[
-              styles.charCard,
-              selectedCharacter === char.id && styles.charCardSelected,
-            ]}
-            onPress={() => selectCharacter(char.id)}
+            style={styles.charCardWrapper}
+            onPress={() => handleSelectChar(char.id)}
+            activeOpacity={0.7}
           >
-            <Text style={styles.charEmoji}>{CHAR_EMOJI[char.id] || '❓'}</Text>
-            <Text style={styles.charName}>{char.name}</Text>
+            <CharacterPortrait
+              characterId={char.id}
+              name={char.name}
+              martialArt={char.martialArt}
+              selected={selectedCharacter === char.id}
+              size="small"
+            />
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -92,33 +105,27 @@ export default function CharacterSelectScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0D0D1A', padding: 20, paddingTop: 60 },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#FFD700', textAlign: 'center', marginBottom: 20 },
-  preview: { alignItems: 'center', minHeight: 280, justifyContent: 'center' },
-  previewEmoji: { fontSize: 80, marginBottom: 8 },
-  previewName: { fontSize: 28, fontWeight: 'bold', color: '#FFFFFF' },
-  previewTitle: { fontSize: 16, color: '#FF6B35', marginBottom: 16 },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    textAlign: 'center',
+    marginBottom: 20,
+    letterSpacing: 2,
+    textShadowColor: 'rgba(255, 215, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
+  },
+  preview: { alignItems: 'center', minHeight: 320, justifyContent: 'center' },
   previewPlaceholder: { fontSize: 18, color: '#555' },
-  statsContainer: { width: '100%', paddingHorizontal: 20 },
+  statsContainer: { width: '100%', paddingHorizontal: 20, marginTop: 16 },
   statRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   statLabel: { width: 40, color: '#B0B0C0', fontSize: 12, fontWeight: 'bold' },
   statBarBg: { flex: 1, height: 8, backgroundColor: '#333', borderRadius: 4, marginHorizontal: 8 },
   statBarFill: { height: '100%', backgroundColor: '#FF6B35', borderRadius: 4 },
   statValue: { width: 24, color: '#FFFFFF', fontSize: 12, textAlign: 'right' },
-  charList: { maxHeight: 120, marginBottom: 20 },
-  charCard: {
-    width: 80,
-    height: 100,
-    backgroundColor: '#1A1A2E',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  charCardSelected: { borderColor: '#FFD700' },
-  charEmoji: { fontSize: 36, marginBottom: 4 },
-  charName: { fontSize: 12, color: '#FFFFFF' },
+  charList: { maxHeight: 140, marginBottom: 20 },
+  charCardWrapper: { marginRight: 12 },
   confirmBtn: {
     backgroundColor: '#22C55E',
     paddingVertical: 16,
