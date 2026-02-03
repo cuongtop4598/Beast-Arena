@@ -1,6 +1,6 @@
-import { registry } from '../registry';
+import { CharacterConfig } from '../types';
 
-registry.register({
+export const eagleConfig: CharacterConfig = {
   id: 'eagle',
   name: 'Eagle',
   title: 'Wing Chun Eagle',
@@ -20,4 +20,4 @@ registry.register({
     ultimate: { id: 'eagle_storm', name: 'Bão Táp Đại Bàng', damage: 320, startup: 18, active: 20, recovery: 22, cooldown: 0, type: 'strike', effect: 'knockdown', animationKey: 'ultimate_storm' },
   },
   unlockCondition: { type: 'free' },
-});
+};

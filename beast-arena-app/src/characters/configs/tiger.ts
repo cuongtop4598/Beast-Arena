@@ -1,6 +1,6 @@
-import { registry } from '../registry';
+import { CharacterConfig } from '../types';
 
-registry.register({
+export const tigerConfig: CharacterConfig = {
   id: 'tiger',
   name: 'Tiger',
   title: 'Muay Thai Tiger',
@@ -20,4 +20,4 @@ registry.register({
     ultimate: { id: 'tiger_inferno', name: 'Hỏa Hổ Thiêu Đốt', damage: 350, startup: 20, active: 15, recovery: 25, cooldown: 0, type: 'strike', effect: 'knockdown', animationKey: 'ultimate_inferno' },
   },
   unlockCondition: { type: 'free' },
-});
+};

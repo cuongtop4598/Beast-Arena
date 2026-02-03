@@ -1,6 +1,6 @@
-import { registry } from '../registry';
+import { CharacterConfig } from '../types';
 
-registry.register({
+export const lionConfig: CharacterConfig = {
   id: 'lion',
   name: 'Lion',
   title: 'Karate Lion',
@@ -19,4 +19,4 @@ registry.register({
     ultimate: { id: 'lion_thunder', name: 'Sấm Sét Vương Giả', damage: 380, startup: 22, active: 12, recovery: 28, cooldown: 0, type: 'strike', effect: 'knockdown', animationKey: 'ultimate_thunder' },
   },
   unlockCondition: { type: 'free' },
-});
+};

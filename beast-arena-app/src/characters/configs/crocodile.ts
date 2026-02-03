@@ -1,6 +1,6 @@
-import { registry } from '../registry';
+import { CharacterConfig } from '../types';
 
-registry.register({
+export const crocodileConfig: CharacterConfig = {
   id: 'crocodile',
   name: 'Crocodile',
   title: 'Judo Crocodile',
@@ -19,4 +19,4 @@ registry.register({
     ultimate: { id: 'croc_abyss', name: 'Vực Sâu Đầm Lầy', damage: 400, startup: 25, active: 18, recovery: 30, cooldown: 0, type: 'grab', effect: 'knockdown', animationKey: 'ultimate_abyss' },
   },
   unlockCondition: { type: 'free' },
-});
+};

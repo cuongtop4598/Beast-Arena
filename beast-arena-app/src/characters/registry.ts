@@ -2,8 +2,7 @@ import { CharacterConfig } from './types';
 
 /**
  * CharacterRegistry — data-driven, expandable character system.
- * Add new characters by calling registry.register() with a config.
- * No engine code changes needed.
+ * Add new characters by adding config files to configs/ and importing here.
  */
 class CharacterRegistry {
   private characters: Map<string, CharacterConfig> = new Map();
@@ -21,7 +20,6 @@ class CharacterRegistry {
   }
 
   getAvailable(): CharacterConfig[] {
-    // TODO: filter by unlock condition based on player data
     return this.getAll().filter(
       (c) => !c.unlockCondition || c.unlockCondition.type === 'free'
     );
@@ -38,9 +36,13 @@ class CharacterRegistry {
 
 export const registry = new CharacterRegistry();
 
-// Auto-import all character configs
-// Each config file calls registry.register()
-import './configs/tiger';
-import './configs/lion';
-import './configs/crocodile';
-import './configs/eagle';
+// Register all characters (no circular imports — configs export data, we import it)
+import { tigerConfig } from './configs/tiger';
+import { lionConfig } from './configs/lion';
+import { crocodileConfig } from './configs/crocodile';
+import { eagleConfig } from './configs/eagle';
+
+registry.register(tigerConfig);
+registry.register(lionConfig);
+registry.register(crocodileConfig);
+registry.register(eagleConfig);
