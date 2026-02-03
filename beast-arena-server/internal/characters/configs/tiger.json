@@ -1,0 +1,19 @@
+{
+  "id": "tiger",
+  "name": "Tiger",
+  "title": "Muay Thai Tiger",
+  "martial_art": "Muay Thai",
+  "stats": { "hp": 22, "atk": 26, "spd": 28, "def": 16, "special": 8 },
+  "moveset": {
+    "normal_attack": [
+      { "id": "tiger_jab", "name": "Jab", "damage": 15, "startup": 3, "active": 2, "recovery": 5, "cooldown": 0, "type": "strike", "animation_key": "jab" },
+      { "id": "tiger_cross", "name": "Cross", "damage": 22, "startup": 5, "active": 3, "recovery": 7, "cooldown": 0, "type": "strike", "animation_key": "cross" },
+      { "id": "tiger_hook", "name": "Hook", "damage": 30, "startup": 7, "active": 4, "recovery": 10, "cooldown": 0, "type": "strike", "effect": "stun", "animation_key": "hook" }
+    ],
+    "special_skill_1": { "id": "tiger_elbow", "name": "Flying Elbow", "damage": 45, "startup": 8, "active": 4, "recovery": 12, "cooldown": 5000, "type": "strike", "effect": "stun", "animation_key": "flying_elbow" },
+    "special_skill_2": { "id": "tiger_knee", "name": "Devastating Knee", "damage": 50, "startup": 10, "active": 5, "recovery": 15, "cooldown": 7000, "type": "strike", "effect": "knockback", "animation_key": "knee_strike" },
+    "special_skill_3": { "id": "tiger_clinch", "name": "Clinch & Strike", "damage": 35, "startup": 6, "active": 8, "recovery": 10, "cooldown": 6000, "type": "grab", "effect": "stun", "animation_key": "clinch" },
+    "special_skill_4": { "id": "tiger_roundhouse", "name": "Tiger Roundhouse", "damage": 55, "startup": 12, "active": 6, "recovery": 18, "cooldown": 8000, "type": "strike", "effect": "knockdown", "animation_key": "roundhouse" },
+    "ultimate": { "id": "tiger_fury", "name": "Tiger's Fury", "damage": 120, "startup": 15, "active": 20, "recovery": 25, "cooldown": 0, "type": "strike", "effect": "knockdown", "animation_key": "ultimate_fury" }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "lion",
+  "name": "Lion",
+  "title": "Karate Lion",
+  "martial_art": "Karate",
+  "stats": { "hp": 28, "atk": 24, "spd": 20, "def": 22, "special": 6 },
+  "moveset": {
+    "normal_attack": [
+      { "id": "lion_punch", "name": "Straight Punch", "damage": 18, "startup": 4, "active": 2, "recovery": 6, "cooldown": 0, "type": "strike", "animation_key": "punch" },
+      { "id": "lion_kick", "name": "Side Kick", "damage": 25, "startup": 6, "active": 3, "recovery": 8, "cooldown": 0, "type": "strike", "animation_key": "side_kick" },
+      { "id": "lion_uppercut", "name": "Uppercut", "damage": 32, "startup": 8, "active": 4, "recovery": 12, "cooldown": 0, "type": "strike", "effect": "knockback", "animation_key": "uppercut" }
+    ],
+    "special_skill_1": { "id": "lion_kata", "name": "Lion Kata", "damage": 40, "startup": 10, "active": 6, "recovery": 14, "cooldown": 5000, "type": "strike", "effect": "stun", "animation_key": "kata_strike" },
+    "special_skill_2": { "id": "lion_roar", "name": "Lion's Roar", "damage": 30, "startup": 8, "active": 4, "recovery": 10, "cooldown": 6000, "type": "buff", "effect": "slow", "animation_key": "roar" },
+    "special_skill_3": { "id": "lion_counter", "name": "Counter Strike", "damage": 55, "startup": 2, "active": 3, "recovery": 20, "cooldown": 8000, "type": "strike", "effect": "knockback", "animation_key": "counter" },
+    "special_skill_4": { "id": "lion_barrage", "name": "Fist Barrage", "damage": 60, "startup": 12, "active": 10, "recovery": 16, "cooldown": 9000, "type": "strike", "effect": "stun", "animation_key": "barrage" },
+    "ultimate": { "id": "lion_king", "name": "King of Beasts", "damage": 130, "startup": 18, "active": 22, "recovery": 28, "cooldown": 0, "type": "strike", "effect": "knockdown", "animation_key": "ultimate_king" }
+  }
+}

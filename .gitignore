@@ -1,0 +1,25 @@
+# Node
+node_modules/
+.expo/
+dist/
+*.tsbuildinfo
+
+# Go
+beast-arena-server/server
+*.exe
+*.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.production

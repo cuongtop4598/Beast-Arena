@@ -1,0 +1,49 @@
+version: '3.9'
+
+services:
+  server:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - ENV=development
+      - DB_URL=postgres://beast:arena@postgres:5432/beast_arena?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=dev-secret-change-in-production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./internal/characters:/app/characters
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: beast
+      POSTGRES_PASSWORD: arena
+      POSTGRES_DB: beast_arena
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U beast -d beast_arena"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

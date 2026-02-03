@@ -1,0 +1,20 @@
+{
+  "id": "tiger",
+  "name": "Tiger",
+  "title": "Muay Thai Tiger",
+  "martial_art": "Muay Thai",
+  "stats": { "hp": 22, "atk": 26, "spd": 28, "def": 16, "special": 8 },
+  "moveset": {
+    "normal_attack": [
+      { "id": "tiger_jab", "name": "Jab", "damage": 30, "startup": 3, "active": 3, "recovery": 6, "cooldown": 0, "type": "strike", "animation_key": "attack_jab" },
+      { "id": "tiger_cross", "name": "Cross", "damage": 45, "startup": 5, "active": 3, "recovery": 8, "cooldown": 0, "type": "strike", "animation_key": "attack_cross" },
+      { "id": "tiger_hook", "name": "Hook", "damage": 55, "startup": 7, "active": 4, "recovery": 10, "cooldown": 0, "type": "strike", "animation_key": "attack_hook" },
+      { "id": "tiger_knee", "name": "Knee Strike", "damage": 70, "startup": 8, "active": 4, "recovery": 12, "cooldown": 0, "type": "strike", "effect": "knockback", "animation_key": "attack_knee" }
+    ],
+    "special_skill_1": { "id": "tiger_rush", "name": "Hổ Vồ Mồi", "damage": 120, "startup": 10, "active": 8, "recovery": 15, "cooldown": 5000, "type": "strike", "effect": "knockback", "animation_key": "special_rush" },
+    "special_skill_2": { "id": "tiger_elbow", "name": "Chỏ Thép", "damage": 100, "startup": 6, "active": 4, "recovery": 12, "cooldown": 3000, "type": "strike", "effect": "stun", "animation_key": "special_elbow" },
+    "special_skill_3": { "id": "tiger_spin_kick", "name": "Đá Xoáy", "damage": 90, "startup": 8, "active": 6, "recovery": 14, "cooldown": 4000, "type": "strike", "effect": "knockback", "animation_key": "special_spin_kick" },
+    "special_skill_4": { "id": "tiger_clinch", "name": "Gối Thần", "damage": 150, "startup": 12, "active": 10, "recovery": 18, "cooldown": 6000, "type": "grab", "effect": "stun", "animation_key": "special_clinch" },
+    "ultimate": { "id": "tiger_inferno", "name": "Hỏa Hổ Thiêu Đốt", "damage": 350, "startup": 20, "active": 15, "recovery": 25, "cooldown": 0, "type": "strike", "effect": "knockdown", "animation_key": "ultimate_inferno" }
+  }
+}
