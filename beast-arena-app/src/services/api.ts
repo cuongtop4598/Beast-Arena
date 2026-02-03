@@ -1,9 +1,9 @@
 // API service — communicates with Golang backend
 import { usePlayerStore } from '../stores/usePlayerStore';
 
-const API_BASE = __DEV__
-  ? 'http://localhost:8080'
-  : 'https://api.beastarena.game'; // TODO: production URL
+const API_BASE =
+  process.env.EXPO_PUBLIC_API_URL ??
+  (__DEV__ ? 'http://localhost:8080' : 'https://api.beastarena.game');
 
 interface ApiResponse<T> {
   data?: T;

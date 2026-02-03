@@ -1,8 +1,8 @@
 // WebSocket service — connects to Golang game server
 
-const WS_BASE = __DEV__
-  ? 'ws://localhost:8080'
-  : 'wss://api.beastarena.game';
+const WS_BASE =
+  process.env.EXPO_PUBLIC_WS_URL ??
+  (__DEV__ ? 'ws://localhost:8080' : 'wss://api.beastarena.game');
 
 type MessageHandler = (data: any) => void;
 
