@@ -1,11 +1,5 @@
-export { VirtualJoystick } from './VirtualJoystick';
-export type { JoystickDirection } from './VirtualJoystick';
-export { ActionButtons } from './ActionButtons';
-export type { ActionType } from './ActionButtons';
-export { SpecialSkillButtons } from './SpecialSkillButtons';
-export type { SkillSlot } from './SpecialSkillButtons';
-export { UltimateButton } from './UltimateButton';
-export { GameHUD } from './GameHUD';
-export { ControlsOverlay } from './ControlsOverlay';
-export type { ControlInput } from './ControlsOverlay';
-export { SupplyDropOverlay } from './SupplyDropOverlay';
+export { default as VirtualJoystick } from './VirtualJoystick';
+export type { JoystickInput } from './VirtualJoystick';
+export { default as FighterSprite } from './FighterSprite';
+export type { FighterPose } from './FighterSprite';
+export { default as StageBackground } from './StageBackground';
